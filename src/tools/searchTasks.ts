@@ -18,9 +18,18 @@ interface SearchResponse {
 export function register(server: McpServer, client: JiraClient): void {
   server.tool(
     "search_tasks",
-    "Search Jira issues by text query.",
+    "Search Jira issues by text query or raw JQL. Provide either 'query' (text search) or 'jql' (raw JQL), not both.",
     {
-      query: z.string().min(1).describe("Text to search for in issues"),
+      query: z
+        .string()
+        .min(1)
+        .optional()
+        .describe("Text to search for in issues (uses text ~ \"...\")"),
+      jql: z
+        .string()
+        .min(1)
+        .optional()
+        .describe("Raw JQL query (e.g. 'project = PROJ AND status = \"In Progress\"')"),
       max_results: z
         .number()
         .int()
@@ -31,9 +40,19 @@ export function register(server: McpServer, client: JiraClient): void {
     },
     async (args) => {
       try {
-        const escaped = args.query.replace(/"/g, '\\"');
+        if (!args.query && !args.jql) {
+          return errorResponse("Either 'query' or 'jql' must be provided.");
+        }
+        if (args.query && args.jql) {
+          return errorResponse("Provide either 'query' or 'jql', not both.");
+        }
+
+        const jql = args.jql
+          ? args.jql
+          : `text ~ "${args.query!.replace(/"/g, '\\"')}"`;
+
         const data = await client.post<SearchResponse>("/search/jql", {
-          jql: `text ~ "${escaped}"`,
+          jql,
           maxResults: args.max_results,
           fields: ["summary", "status", "priority"],
         });

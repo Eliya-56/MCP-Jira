@@ -123,12 +123,18 @@ async function getTaskDetails(client: JiraClient, args: Record<string, unknown>)
 }
 
 async function searchTasks(client: JiraClient, args: Record<string, unknown>): Promise<unknown> {
-  const query = String(args.query ?? "");
-  if (!query) throw new Error("query is required");
+  const query = args.query ? String(args.query) : null;
+  const jql = args.jql ? String(args.jql) : null;
+  if (!query && !jql) throw new Error("Either 'query' or 'jql' is required");
+  if (query && jql) throw new Error("Provide either 'query' or 'jql', not both");
   const maxResults = Number(args.max_results ?? 5);
-  const escaped = query.replace(/"/g, '\\"');
+
+  const finalJql = jql
+    ? jql
+    : `text ~ "${query!.replace(/"/g, '\\"')}"`;
+
   const data = await client.post<SearchResponse>("/search/jql", {
-    jql: `text ~ "${escaped}"`,
+    jql: finalJql,
     maxResults,
     fields: ["summary", "status", "priority"],
   });
@@ -234,7 +240,8 @@ Usage:
 Tools:
   get_my_tasks        [max_results=10]
   get_task_details    issue_key=PROJ-123
-  search_tasks        query="oauth bug" max_results=5
+  search_tasks        query="oauth bug" max_results=5   (text search)
+  search_tasks        jql="project = PROJ AND status = Open"  (raw JQL)
   update_task_status  issue_key=PROJ-123 transition_name="In Progress"
   add_comment         issue_key=PROJ-123 comment="Fixed in PR #42"
   attach_file         issue_key=PROJ-123 file_path=C:\path\to\file.txt [comment="See attached"]
