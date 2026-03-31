@@ -157,18 +157,172 @@ export function buildRenderedMediaLookup(
   return map;
 }
 
+// ── Markdown → ADF conversion ──
+
 /**
- * Wraps a plain-text string into a minimal ADF document
- * suitable for POST /issue/{key}/comment body.
+ * Regex for inline markdown elements (order matters):
+ *  1. inline code  2. link  3. bold  4. italic
  */
+const INLINE_RE = /`([^`]+)`|\[([^\]]+)\]\(([^)]+)\)|\*\*(.+?)\*\*|\*([^\s*][^*]*?)\*/g;
+
+function parseInline(text: string): AdfNode[] {
+  const nodes: AdfNode[] = [];
+  let lastIndex = 0;
+
+  INLINE_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = INLINE_RE.exec(text)) !== null) {
+    if (m.index > lastIndex) {
+      nodes.push({ type: "text", text: text.slice(lastIndex, m.index) });
+    }
+
+    if (m[1] !== undefined) {
+      nodes.push({ type: "text", text: m[1], marks: [{ type: "code" }] });
+    } else if (m[2] !== undefined) {
+      nodes.push({ type: "text", text: m[2], marks: [{ type: "link", attrs: { href: m[3] } }] });
+    } else if (m[4] !== undefined) {
+      nodes.push({ type: "text", text: m[4], marks: [{ type: "strong" }] });
+    } else if (m[5] !== undefined) {
+      nodes.push({ type: "text", text: m[5], marks: [{ type: "em" }] });
+    }
+
+    lastIndex = INLINE_RE.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push({ type: "text", text: text.slice(lastIndex) });
+  }
+  if (nodes.length === 0) {
+    nodes.push({ type: "text", text });
+  }
+  return nodes;
+}
+
+/**
+ * Converts a Markdown string into an ADF document.
+ *
+ * Supported block elements: headings, bullet/ordered lists, code blocks,
+ * blockquotes, horizontal rules, paragraphs.
+ *
+ * Supported inline elements: **bold**, *italic*, `code`, [links](url).
+ */
+export function markdownToAdf(markdown: string): AdfNode {
+  const lines = markdown.split("\n");
+  const blocks: AdfNode[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    if (line.trim() === "") { i++; continue; }
+
+    // Fenced code block
+    const fenceMatch = line.match(/^```(\w*)$/);
+    if (fenceMatch) {
+      const lang = fenceMatch[1] || undefined;
+      const codeLines: string[] = [];
+      i++;
+      while (i < lines.length && !lines[i].startsWith("```")) {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      if (i < lines.length) i++;
+      const node: AdfNode = { type: "codeBlock", content: [{ type: "text", text: codeLines.join("\n") }] };
+      if (lang) node.attrs = { language: lang };
+      blocks.push(node);
+      continue;
+    }
+
+    // Heading
+    const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
+    if (headingMatch) {
+      blocks.push({ type: "heading", attrs: { level: headingMatch[1].length }, content: parseInline(headingMatch[2]) });
+      i++;
+      continue;
+    }
+
+    // Horizontal rule (---, ***, ___)
+    if (/^-{3,}$|^\*{3,}$|^_{3,}$/.test(line.trim())) {
+      blocks.push({ type: "rule" });
+      i++;
+      continue;
+    }
+
+    // Blockquote
+    if (line.startsWith(">")) {
+      const paraLines: string[] = [];
+      const paras: AdfNode[] = [];
+      while (i < lines.length && lines[i].startsWith(">")) {
+        const stripped = lines[i].replace(/^>\s?/, "");
+        if (stripped.trim() === "") {
+          if (paraLines.length > 0) {
+            paras.push({ type: "paragraph", content: parseInline(paraLines.join(" ")) });
+            paraLines.length = 0;
+          }
+        } else {
+          paraLines.push(stripped);
+        }
+        i++;
+      }
+      if (paraLines.length > 0) {
+        paras.push({ type: "paragraph", content: parseInline(paraLines.join(" ")) });
+      }
+      if (paras.length > 0) blocks.push({ type: "blockquote", content: paras });
+      continue;
+    }
+
+    // Bullet list
+    if (/^[-*+]\s/.test(line)) {
+      const items: AdfNode[] = [];
+      while (i < lines.length && /^[-*+]\s/.test(lines[i])) {
+        const text = lines[i].replace(/^[-*+]\s+/, "");
+        items.push({ type: "listItem", content: [{ type: "paragraph", content: parseInline(text) }] });
+        i++;
+      }
+      blocks.push({ type: "bulletList", content: items });
+      continue;
+    }
+
+    // Ordered list
+    if (/^\d+[.)]\s/.test(line)) {
+      const items: AdfNode[] = [];
+      while (i < lines.length && /^\d+[.)]\s/.test(lines[i])) {
+        const text = lines[i].replace(/^\d+[.)]\s+/, "");
+        items.push({ type: "listItem", content: [{ type: "paragraph", content: parseInline(text) }] });
+        i++;
+      }
+      blocks.push({ type: "orderedList", content: items });
+      continue;
+    }
+
+    // Paragraph — collect consecutive non-special lines
+    const pLines: string[] = [];
+    while (
+      i < lines.length &&
+      lines[i].trim() !== "" &&
+      !lines[i].startsWith("```") &&
+      !/^#{1,6}\s/.test(lines[i]) &&
+      !/^-{3,}$|^\*{3,}$|^_{3,}$/.test(lines[i].trim()) &&
+      !lines[i].startsWith(">") &&
+      !/^[-*+]\s/.test(lines[i]) &&
+      !/^\d+[.)]\s/.test(lines[i])
+    ) {
+      pLines.push(lines[i]);
+      i++;
+    }
+    if (pLines.length > 0) {
+      blocks.push({ type: "paragraph", content: parseInline(pLines.join(" ")) });
+    }
+  }
+
+  if (blocks.length === 0) {
+    blocks.push({ type: "paragraph", content: [{ type: "text", text: "" }] });
+  }
+
+  return { type: "doc", version: 1, content: blocks };
+}
+
+/** @deprecated Use markdownToAdf — kept for backward compatibility. */
 export function textToAdf(text: string): AdfNode {
-  const paragraphs = text.split(/\n{2,}/);
-  return {
-    type: "doc",
-    version: 1,
-    content: paragraphs.map((para) => ({
-      type: "paragraph",
-      content: [{ type: "text", text: para.replace(/\n/g, " ") }],
-    })),
-  };
+  return markdownToAdf(text);
 }

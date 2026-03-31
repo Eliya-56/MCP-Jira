@@ -1,7 +1,7 @@
 # Jira MCP Server
 
 MCP (Model Context Protocol) server for Jira Cloud.
-Provides AI assistants with tools to read, search, transition, comment, and attach files to Jira issues via the REST API v3.
+Provides AI assistants with tools to read, search, create, transition, comment, and attach files to Jira issues via the REST API v3. Text fields (descriptions, comments) support Markdown formatting.
 
 ## Prerequisites
 
@@ -67,14 +67,13 @@ Returns full context for a single issue: summary, description, status, assignee,
 
 ### search_tasks
 
-Searches issues by text query.
+Searches issues by text query or raw JQL. Provide either `query` or `jql`, not both.
 
-| Parameter     | Type   | Default | Description              |
-|---------------|--------|---------|--------------------------|
-| `query`       | string |         | Text to search for       |
-| `max_results` | number | 5       | Max results (1-50)       |
-
-JQL: `text ~ "<query>"`
+| Parameter     | Type   | Default | Description                              |
+|---------------|--------|---------|------------------------------------------|
+| `query`       | string |         | Text to search for (uses `text ~ "..."`) |
+| `jql`         | string |         | Raw JQL query                            |
+| `max_results` | number | 5       | Max results (1-50)                       |
 
 ### update_task_status
 
@@ -85,14 +84,25 @@ Transitions an issue to a new status. Fetches available transitions first, match
 | `issue_key`       | string | Issue key, e.g. `PROJ-123`               |
 | `transition_name` | string | Target transition, e.g. `In Progress`    |
 
+### create_task
+
+Creates a new Jira issue. Description supports [Markdown formatting](docs/markdown-formatting.md).
+
+| Parameter     | Type   | Default  | Description                             |
+|---------------|--------|----------|-----------------------------------------|
+| `project`     | string |          | Project key (e.g. `PROJ`)               |
+| `summary`     | string |          | Issue title                             |
+| `issue_type`  | string | `Task`   | Issue type (Task, Bug, Story, Epic ...) |
+| `description` | string |          | Description (supports Markdown)         |
+
 ### add_comment
 
-Adds a comment to an issue.
+Adds a comment to an issue. Supports [Markdown formatting](docs/markdown-formatting.md).
 
-| Parameter   | Type   | Description                |
-|-------------|--------|----------------------------|
-| `issue_key` | string | Issue key, e.g. `PROJ-123` |
-| `comment`   | string | Comment text               |
+| Parameter   | Type   | Description                    |
+|-------------|--------|--------------------------------|
+| `issue_key` | string | Issue key, e.g. `PROJ-123`     |
+| `comment`   | string | Comment text (supports Markdown) |
 
 ### attach_file
 
@@ -122,6 +132,8 @@ npm run cli -- get_my_tasks
 npm run cli -- get_my_tasks max_results=5
 npm run cli -- get_task_details issue_key=PROJ-123
 npm run cli -- search_tasks query="oauth bug" max_results=5
+npm run cli -- search_tasks jql="project = PROJ AND status = Open"
+npm run cli -- create_task project=PROJ summary="Fix login bug" issue_type=Bug description="**Steps:** ..."
 npm run cli -- update_task_status issue_key=PROJ-123 transition_name="In Progress"
 npm run cli -- add_comment issue_key=PROJ-123 comment="Fixed in PR #42"
 npm run cli -- attach_file issue_key=PROJ-123 file_path=C:\path\to\report.pdf
@@ -148,7 +160,7 @@ src/
   index.ts           — MCP server entry point (stdio transport)
   cli.ts             — CLI entry point for manual testing
   config.ts          — .env loader, validates JIRA_BASE_URL / EMAIL / API_TOKEN
-  adf.ts             — ADF (Atlassian Document Format) to/from plain text
+  adf.ts             — ADF ↔ Markdown/plain-text conversion
   jira-client.ts     — HTTP wrapper over native fetch with Basic Auth
   response.ts        — successResponse / errorResponse helpers
   tools/
@@ -158,4 +170,7 @@ src/
     updateTaskStatus.ts
     addComment.ts
     attachFile.ts
+    createTask.ts
+docs/
+  markdown-formatting.md  — Supported Markdown syntax reference
 ```

@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { textToAdf } from "../adf.js";
+import { markdownToAdf } from "../adf.js";
 import type { JiraClient } from "../jira-client.js";
 import { JiraClientError } from "../jira-client.js";
 import { errorResponse, successResponse } from "../response.js";
@@ -8,18 +8,18 @@ import { errorResponse, successResponse } from "../response.js";
 export function register(server: McpServer, client: JiraClient): void {
   server.tool(
     "add_comment",
-    "Add a comment to a Jira issue.",
+    "Add a comment to a Jira issue. Supports Markdown formatting.",
     {
       issue_key: z
         .string()
         .regex(/^[A-Z][A-Z0-9_]+-\d+$/, "Must be a valid issue key like PROJ-123")
         .describe("Jira issue key (e.g. PROJ-123)"),
-      comment: z.string().min(1).describe("Comment text to add"),
+      comment: z.string().min(1).describe("Comment text (supports Markdown)"),
     },
     async (args) => {
       try {
         await client.post(`/issue/${args.issue_key}/comment`, {
-          body: textToAdf(args.comment),
+          body: markdownToAdf(args.comment),
         });
 
         return successResponse({ success: true });

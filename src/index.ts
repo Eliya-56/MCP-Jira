@@ -8,6 +8,7 @@ import { register as registerSearchTasks } from "./tools/searchTasks.js";
 import { register as registerUpdateTaskStatus } from "./tools/updateTaskStatus.js";
 import { register as registerAddComment } from "./tools/addComment.js";
 import { register as registerAttachFile } from "./tools/attachFile.js";
+import { register as registerCreateTask } from "./tools/createTask.js";
 
 async function main(): Promise<void> {
   const config = getJiraConfig();
@@ -24,6 +25,7 @@ async function main(): Promise<void> {
   registerUpdateTaskStatus(server, client);
   registerAddComment(server, client);
   registerAttachFile(server, client);
+  registerCreateTask(server, client);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

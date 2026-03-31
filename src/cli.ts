@@ -1,4 +1,4 @@
-import { adfToText, buildMediaLookup, buildRenderedMediaLookup, extractAttachmentIdsFromHtml, textToAdf, type AdfNode } from "./adf.js";
+import { adfToText, buildMediaLookup, buildRenderedMediaLookup, extractAttachmentIdsFromHtml, markdownToAdf, type AdfNode } from "./adf.js";
 import { getJiraConfig } from "./config.js";
 import { JiraClient, JiraClientError } from "./jira-client.js";
 
@@ -171,7 +171,7 @@ async function addComment(client: JiraClient, args: Record<string, unknown>): Pr
   if (!key) throw new Error("issue_key is required");
   if (!comment) throw new Error("comment is required");
 
-  await client.post(`/issue/${key}/comment`, { body: textToAdf(comment) });
+  await client.post(`/issue/${key}/comment`, { body: markdownToAdf(comment) });
   return { success: true };
 }
 
@@ -205,10 +205,37 @@ async function attachFile(client: JiraClient, args: Record<string, unknown>): Pr
 
   const comment = args.comment ? String(args.comment) : null;
   if (comment) {
-    await client.post(`/issue/${key}/comment`, { body: textToAdf(comment) });
+    await client.post(`/issue/${key}/comment`, { body: markdownToAdf(comment) });
   }
 
   return { success: true, attachments: attached, commentAdded: !!comment };
+}
+
+async function createTask(client: JiraClient, args: Record<string, unknown>): Promise<unknown> {
+  const project = String(args.project ?? "");
+  const summary = String(args.summary ?? "");
+  if (!project) throw new Error("project is required");
+  if (!summary) throw new Error("summary is required");
+
+  const issueType = String(args.issue_type ?? "Task");
+  const fields: Record<string, unknown> = {
+    project: { key: project },
+    summary,
+    issuetype: { name: issueType },
+  };
+  if (args.description) {
+    fields.description = markdownToAdf(String(args.description));
+  }
+  if (args.parent) {
+    fields.parent = { key: String(args.parent) };
+  }
+
+  const data = await client.post<{ id: string; key: string; self: string }>("/issue", { fields });
+  return {
+    key: data.key,
+    id: data.id,
+    url: data.self.replace(/\/rest\/api\/3\/issue\/.*/, `/browse/${data.key}`),
+  };
 }
 
 async function rawIssue(client: JiraClient, args: Record<string, unknown>): Promise<unknown> {
@@ -227,6 +254,7 @@ const TOOLS: Record<string, (client: JiraClient, args: Record<string, unknown>) 
   raw_issue: rawIssue,
   add_comment: addComment,
   attach_file: attachFile,
+  create_task: createTask,
 };
 
 function printUsage(): void {
@@ -245,6 +273,7 @@ Tools:
   update_task_status  issue_key=PROJ-123 transition_name="In Progress"
   add_comment         issue_key=PROJ-123 comment="Fixed in PR #42"
   attach_file         issue_key=PROJ-123 file_path=C:\path\to\file.txt [comment="See attached"]
+  create_task         project=PROJ summary="Bug title" [issue_type=Bug] [description="..."] [parent=EPIC-1]
   raw_issue           issue_key=PROJ-123  (dump raw API response for debugging)
 `.trim());
 }

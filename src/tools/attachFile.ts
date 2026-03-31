@@ -55,9 +55,9 @@ export function register(server: McpServer, client: JiraClient): void {
         }));
 
         if (args.comment) {
-          const { textToAdf } = await import("../adf.js");
+          const { markdownToAdf } = await import("../adf.js");
           await client.post(`/issue/${args.issue_key}/comment`, {
-            body: textToAdf(args.comment),
+            body: markdownToAdf(args.comment),
           });
         }
 
