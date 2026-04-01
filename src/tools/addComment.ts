@@ -21,7 +21,7 @@ export function register(server: McpServer, client: JiraClient): void {
     async (args) => {
       try {
         await client.post(`/issue/${args.issue_key}/comment`, {
-          body: markdownToAdf(args.comment),
+          body: markdownToAdf(args.comment, client.baseUrl),
         });
 
         return successResponse({ success: true });

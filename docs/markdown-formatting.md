@@ -26,6 +26,14 @@ The Jira MCP server converts Markdown to Atlassian Document Format (ADF) when cr
 [Link text](https://example.com)
 ```
 
+### Jira Issue Link (shorthand)
+
+```
+[PROJ-123]()
+```
+
+When the URL is left empty and the text is a valid Jira issue key, the server auto-generates the link using `JIRA_BASE_URL` from config. Jira renders it as a smart-link (inlineCard) showing the issue summary.
+
 ### Bullet List
 
 ```

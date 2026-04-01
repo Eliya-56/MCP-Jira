@@ -15,8 +15,10 @@ export class JiraClientError extends Error {
 export class JiraClient {
   private readonly authHeader: string;
   private readonly apiBase: string;
+  public readonly baseUrl: string;
 
   constructor(baseUrl: string, email: string, apiToken: string) {
+    this.baseUrl = baseUrl;
     this.apiBase = `${baseUrl}/rest/api/3`;
     this.authHeader =
       "Basic " + Buffer.from(`${email}:${apiToken}`).toString("base64");

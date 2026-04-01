@@ -171,7 +171,7 @@ async function addComment(client: JiraClient, args: Record<string, unknown>): Pr
   if (!key) throw new Error("issue_key is required");
   if (!comment) throw new Error("comment is required");
 
-  await client.post(`/issue/${key}/comment`, { body: markdownToAdf(comment) });
+  await client.post(`/issue/${key}/comment`, { body: markdownToAdf(comment, client.baseUrl) });
   return { success: true };
 }
 
@@ -205,7 +205,7 @@ async function attachFile(client: JiraClient, args: Record<string, unknown>): Pr
 
   const comment = args.comment ? String(args.comment) : null;
   if (comment) {
-    await client.post(`/issue/${key}/comment`, { body: markdownToAdf(comment) });
+    await client.post(`/issue/${key}/comment`, { body: markdownToAdf(comment, client.baseUrl) });
   }
 
   return { success: true, attachments: attached, commentAdded: !!comment };
@@ -224,7 +224,7 @@ async function createTask(client: JiraClient, args: Record<string, unknown>): Pr
     issuetype: { name: issueType },
   };
   if (args.description) {
-    fields.description = markdownToAdf(String(args.description));
+    fields.description = markdownToAdf(String(args.description), client.baseUrl);
   }
   if (args.parent) {
     fields.parent = { key: String(args.parent) };
@@ -244,7 +244,7 @@ async function updateTask(client: JiraClient, args: Record<string, unknown>): Pr
 
   const fields: Record<string, unknown> = {};
   if (args.summary) fields.summary = String(args.summary);
-  if (args.description) fields.description = markdownToAdf(String(args.description));
+  if (args.description) fields.description = markdownToAdf(String(args.description), client.baseUrl);
   if (args.issue_type) fields.issuetype = { name: String(args.issue_type) };
   if (args.parent) fields.parent = { key: String(args.parent) };
 

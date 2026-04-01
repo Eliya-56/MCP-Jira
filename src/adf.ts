@@ -161,11 +161,13 @@ export function buildRenderedMediaLookup(
 
 /**
  * Regex for inline markdown elements (order matters):
- *  1. inline code  2. link  3. bold  4. italic
+ *  1. inline code  2. link (url may be empty)  3. bold  4. italic
  */
-const INLINE_RE = /`([^`]+)`|\[([^\]]+)\]\(([^)]+)\)|\*\*(.+?)\*\*|\*([^\s*][^*]*?)\*/g;
+const INLINE_RE = /`([^`]+)`|\[([^\]]+)\]\(([^)]*)\)|\*\*(.+?)\*\*|\*([^\s*][^*]*?)\*/g;
 
-function parseInline(text: string): AdfNode[] {
+const ISSUE_KEY_RE = /^[A-Z][A-Z0-9_]+-\d+$/;
+
+function parseInline(text: string, jiraBaseUrl?: string): AdfNode[] {
   const nodes: AdfNode[] = [];
   let lastIndex = 0;
 
@@ -179,7 +181,16 @@ function parseInline(text: string): AdfNode[] {
     if (m[1] !== undefined) {
       nodes.push({ type: "text", text: m[1], marks: [{ type: "code" }] });
     } else if (m[2] !== undefined) {
-      nodes.push({ type: "text", text: m[2], marks: [{ type: "link", attrs: { href: m[3] } }] });
+      const linkText = m[2];
+      const linkUrl = m[3];
+
+      if (!linkUrl && jiraBaseUrl && ISSUE_KEY_RE.test(linkText)) {
+        nodes.push({ type: "inlineCard", attrs: { url: `${jiraBaseUrl}/browse/${linkText}` } });
+      } else if (linkUrl) {
+        nodes.push({ type: "text", text: linkText, marks: [{ type: "link", attrs: { href: linkUrl } }] });
+      } else {
+        nodes.push({ type: "text", text: linkText });
+      }
     } else if (m[4] !== undefined) {
       nodes.push({ type: "text", text: m[4], marks: [{ type: "strong" }] });
     } else if (m[5] !== undefined) {
@@ -205,8 +216,11 @@ function parseInline(text: string): AdfNode[] {
  * blockquotes, horizontal rules, paragraphs.
  *
  * Supported inline elements: **bold**, *italic*, `code`, [links](url).
+ *
+ * When jiraBaseUrl is provided, `[PROJ-123]()` shorthand is converted to
+ * an inlineCard smart-link pointing to `{jiraBaseUrl}/browse/PROJ-123`.
  */
-export function markdownToAdf(markdown: string): AdfNode {
+export function markdownToAdf(markdown: string, jiraBaseUrl?: string): AdfNode {
   const lines = markdown.split("\n");
   const blocks: AdfNode[] = [];
   let i = 0;
@@ -236,7 +250,7 @@ export function markdownToAdf(markdown: string): AdfNode {
     // Heading
     const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
     if (headingMatch) {
-      blocks.push({ type: "heading", attrs: { level: headingMatch[1].length }, content: parseInline(headingMatch[2]) });
+      blocks.push({ type: "heading", attrs: { level: headingMatch[1].length }, content: parseInline(headingMatch[2], jiraBaseUrl) });
       i++;
       continue;
     }
@@ -256,7 +270,7 @@ export function markdownToAdf(markdown: string): AdfNode {
         const stripped = lines[i].replace(/^>\s?/, "");
         if (stripped.trim() === "") {
           if (paraLines.length > 0) {
-            paras.push({ type: "paragraph", content: parseInline(paraLines.join(" ")) });
+            paras.push({ type: "paragraph", content: parseInline(paraLines.join(" "), jiraBaseUrl) });
             paraLines.length = 0;
           }
         } else {
@@ -265,7 +279,7 @@ export function markdownToAdf(markdown: string): AdfNode {
         i++;
       }
       if (paraLines.length > 0) {
-        paras.push({ type: "paragraph", content: parseInline(paraLines.join(" ")) });
+        paras.push({ type: "paragraph", content: parseInline(paraLines.join(" "), jiraBaseUrl) });
       }
       if (paras.length > 0) blocks.push({ type: "blockquote", content: paras });
       continue;
@@ -276,7 +290,7 @@ export function markdownToAdf(markdown: string): AdfNode {
       const items: AdfNode[] = [];
       while (i < lines.length && /^[-*+]\s/.test(lines[i])) {
         const text = lines[i].replace(/^[-*+]\s+/, "");
-        items.push({ type: "listItem", content: [{ type: "paragraph", content: parseInline(text) }] });
+        items.push({ type: "listItem", content: [{ type: "paragraph", content: parseInline(text, jiraBaseUrl) }] });
         i++;
       }
       blocks.push({ type: "bulletList", content: items });
@@ -288,7 +302,7 @@ export function markdownToAdf(markdown: string): AdfNode {
       const items: AdfNode[] = [];
       while (i < lines.length && /^\d+[.)]\s/.test(lines[i])) {
         const text = lines[i].replace(/^\d+[.)]\s+/, "");
-        items.push({ type: "listItem", content: [{ type: "paragraph", content: parseInline(text) }] });
+        items.push({ type: "listItem", content: [{ type: "paragraph", content: parseInline(text, jiraBaseUrl) }] });
         i++;
       }
       blocks.push({ type: "orderedList", content: items });
@@ -311,7 +325,7 @@ export function markdownToAdf(markdown: string): AdfNode {
       i++;
     }
     if (pLines.length > 0) {
-      blocks.push({ type: "paragraph", content: parseInline(pLines.join(" ")) });
+      blocks.push({ type: "paragraph", content: parseInline(pLines.join(" "), jiraBaseUrl) });
     }
   }
 
@@ -323,6 +337,6 @@ export function markdownToAdf(markdown: string): AdfNode {
 }
 
 /** @deprecated Use markdownToAdf — kept for backward compatibility. */
-export function textToAdf(text: string): AdfNode {
-  return markdownToAdf(text);
+export function textToAdf(text: string, jiraBaseUrl?: string): AdfNode {
+  return markdownToAdf(text, jiraBaseUrl);
 }

@@ -48,7 +48,7 @@ export function register(server: McpServer, client: JiraClient): void {
         };
 
         if (args.description) {
-          fields.description = markdownToAdf(args.description);
+          fields.description = markdownToAdf(args.description, client.baseUrl);
         }
         if (args.parent) {
           fields.parent = { key: args.parent };
