@@ -10,6 +10,8 @@ import { register as registerAddComment } from "./tools/addComment.js";
 import { register as registerAttachFile } from "./tools/attachFile.js";
 import { register as registerCreateTask } from "./tools/createTask.js";
 import { register as registerUpdateTask } from "./tools/updateTask.js";
+import { register as registerLinkIssues } from "./tools/linkIssues.js";
+import { register as registerUnlinkIssues } from "./tools/unlinkIssues.js";
 
 async function main(): Promise<void> {
   const config = getJiraConfig();
@@ -28,6 +30,8 @@ async function main(): Promise<void> {
   registerAttachFile(server, client);
   registerCreateTask(server, client);
   registerUpdateTask(server, client);
+  registerLinkIssues(server, client);
+  registerUnlinkIssues(server, client);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

@@ -1,7 +1,7 @@
 # Jira MCP Server
 
 MCP (Model Context Protocol) server for Jira Cloud.
-Provides AI assistants with tools to read, search, create, update, transition, comment, and attach files to Jira issues via the REST API v3. Text fields (descriptions, comments) support Markdown formatting.
+Provides AI assistants with tools to read, search, create, update, transition, link, comment, and attach files to Jira issues via the REST API v3. Text fields (descriptions, comments) support Markdown formatting.
 
 ## Prerequisites
 
@@ -59,11 +59,13 @@ JQL: `assignee = currentUser() AND status NOT IN (Done, Cancelled) ORDER BY prio
 
 ### get_task_details
 
-Returns full context for a single issue: summary, description, status, assignee, and comments.
+Returns full context for a single issue: summary, description, status, assignee, comments, attachments, and issue links.
 
 | Parameter   | Type   | Description                  |
 |-------------|--------|------------------------------|
 | `issue_key` | string | Issue key, e.g. `PROJ-123`   |
+
+Response includes `issueLinks[]` with `id`, `linkType`, `direction`, `relation`, and linked issue details. Use the link `id` with `unlink_issues` to remove a link.
 
 ### search_tasks
 
@@ -107,6 +109,26 @@ Updates fields on an existing Jira issue. Only provided fields are changed. Desc
 | `description` | string | New description (supports Markdown)     |
 | `issue_type`  | string | New issue type (Story, Bug, Task ...)   |
 | `parent`      | string | New parent issue key (e.g. epic key)    |
+
+### link_issues
+
+Creates a link between two Jira issues. Use `get_task_details` to see existing links.
+
+| Parameter       | Type   | Description                                            |
+|-----------------|--------|--------------------------------------------------------|
+| `link_type`     | string | Link type name (e.g. `Blocks`, `Relates`, `Duplicate`) |
+| `outward_issue` | string | Issue key that gets the outward relation (e.g. the blocker) |
+| `inward_issue`  | string | Issue key that gets the inward relation (e.g. the blocked)  |
+
+Common link types: **Blocks** (blocks / is blocked by), **Relates** (relates to), **Duplicate** (duplicates / is duplicated by), **Cloners** (clones / is cloned by).
+
+### unlink_issues
+
+Removes a link between two issues by link ID. Get the link ID from `get_task_details` → `issueLinks[].id`.
+
+| Parameter | Type   | Description              |
+|-----------|--------|--------------------------|
+| `link_id` | string | Issue link ID to delete  |
 
 ### add_comment
 
@@ -152,6 +174,8 @@ npm run cli -- update_task_status issue_key=PROJ-123 transition_name="In Progres
 npm run cli -- add_comment issue_key=PROJ-123 comment="Fixed in PR #42"
 npm run cli -- attach_file issue_key=PROJ-123 file_path=C:\path\to\report.pdf
 npm run cli -- attach_file issue_key=PROJ-123 file_path=C:\path\to\report.pdf comment="See attached report"
+npm run cli -- link_issues link_type=Blocks outward_issue=PROJ-1 inward_issue=PROJ-2
+npm run cli -- unlink_issues link_id=12345
 ```
 
 ### Examples (JSON — Bash / macOS / Linux)
@@ -186,6 +210,8 @@ src/
     attachFile.ts
     createTask.ts
     updateTask.ts
+    linkIssues.ts
+    unlinkIssues.ts
 docs/
   markdown-formatting.md  — Supported Markdown syntax reference
 ```

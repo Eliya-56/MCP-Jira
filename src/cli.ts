@@ -31,6 +31,18 @@ interface AttachmentField {
   mediaApiFileId?: string;
 }
 
+interface LinkedIssue {
+  key: string;
+  fields: { summary: string; status: { name: string } };
+}
+
+interface IssueLinkField {
+  id: string;
+  type: { name: string; inward: string; outward: string };
+  inwardIssue?: LinkedIssue;
+  outwardIssue?: LinkedIssue;
+}
+
 interface IssueResponse {
   key: string;
   fields: {
@@ -39,6 +51,7 @@ interface IssueResponse {
     status: { name: string };
     assignee: { displayName: string } | null;
     attachment: AttachmentField[];
+    issuelinks: IssueLinkField[];
     comment: {
       comments: Array<{
         author: { displayName: string };
@@ -79,7 +92,7 @@ async function getTaskDetails(client: JiraClient, args: Record<string, unknown>)
   const key = String(args.issue_key ?? "");
   if (!key) throw new Error("issue_key is required");
   const data = await client.get<IssueResponse>(
-    `/issue/${key}?fields=summary,description,status,assignee,comment,attachment&expand=renderedFields`,
+    `/issue/${key}?fields=summary,description,status,assignee,comment,attachment,issuelinks&expand=renderedFields`,
   );
   const attachments = data.fields.attachment ?? [];
   const mediaLookup = buildMediaLookup(attachments);
@@ -119,6 +132,20 @@ async function getTaskDetails(client: JiraClient, args: Record<string, unknown>)
       author: a.author.displayName,
       content: a.content,
     })),
+    issueLinks: (data.fields.issuelinks ?? []).map((link) => {
+      const other = link.outwardIssue ?? link.inwardIssue;
+      const direction = link.outwardIssue ? "outward" : "inward";
+      const relation = link.outwardIssue ? link.type.outward : link.type.inward;
+      return {
+        id: link.id,
+        linkType: link.type.name,
+        direction,
+        relation,
+        issue: other
+          ? { key: other.key, summary: other.fields.summary, status: other.fields.status.name }
+          : null,
+      };
+    }),
   };
 }
 
@@ -256,6 +283,30 @@ async function updateTask(client: JiraClient, args: Record<string, unknown>): Pr
   return { success: true, key };
 }
 
+async function linkIssues(client: JiraClient, args: Record<string, unknown>): Promise<unknown> {
+  const linkType = String(args.link_type ?? "");
+  const outward = String(args.outward_issue ?? "");
+  const inward = String(args.inward_issue ?? "");
+  if (!linkType) throw new Error("link_type is required");
+  if (!outward) throw new Error("outward_issue is required");
+  if (!inward) throw new Error("inward_issue is required");
+
+  await client.post("/issueLink", {
+    type: { name: linkType },
+    outwardIssue: { key: outward },
+    inwardIssue: { key: inward },
+  });
+  return { success: true, link_type: linkType, outward_issue: outward, inward_issue: inward };
+}
+
+async function unlinkIssues(client: JiraClient, args: Record<string, unknown>): Promise<unknown> {
+  const linkId = String(args.link_id ?? "");
+  if (!linkId) throw new Error("link_id is required");
+
+  await client.delete(`/issueLink/${linkId}`);
+  return { success: true, deletedLinkId: linkId };
+}
+
 async function rawIssue(client: JiraClient, args: Record<string, unknown>): Promise<unknown> {
   const key = String(args.issue_key ?? "");
   if (!key) throw new Error("issue_key is required");
@@ -274,6 +325,8 @@ const TOOLS: Record<string, (client: JiraClient, args: Record<string, unknown>) 
   attach_file: attachFile,
   create_task: createTask,
   update_task: updateTask,
+  link_issues: linkIssues,
+  unlink_issues: unlinkIssues,
 };
 
 function printUsage(): void {
@@ -294,6 +347,8 @@ Tools:
   attach_file         issue_key=PROJ-123 file_path=C:\path\to\file.txt [comment="See attached"]
   create_task         project=PROJ summary="Bug title" [issue_type=Bug] [description="..."] [parent=EPIC-1]
   update_task         issue_key=PROJ-123 [summary="New title"] [description="..."] [issue_type=Bug] [parent=EPIC-1]
+  link_issues         link_type=Blocks outward_issue=PROJ-1 inward_issue=PROJ-2
+  unlink_issues       link_id=12345
   raw_issue           issue_key=PROJ-123  (dump raw API response for debugging)
 `.trim());
 }

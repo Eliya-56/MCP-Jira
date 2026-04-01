@@ -24,6 +24,18 @@ interface CommentEntry {
   renderedBody?: string;
 }
 
+interface LinkedIssue {
+  key: string;
+  fields: { summary: string; status: { name: string } };
+}
+
+interface IssueLinkField {
+  id: string;
+  type: { name: string; inward: string; outward: string };
+  inwardIssue?: LinkedIssue;
+  outwardIssue?: LinkedIssue;
+}
+
 interface IssueResponse {
   key: string;
   fields: {
@@ -32,6 +44,7 @@ interface IssueResponse {
     status: { name: string };
     assignee: { displayName: string; emailAddress?: string } | null;
     attachment: AttachmentField[];
+    issuelinks: IssueLinkField[];
     comment: {
       comments: CommentEntry[];
     };
@@ -58,7 +71,7 @@ export function register(server: McpServer, client: JiraClient): void {
     async (args) => {
       try {
         const data = await client.get<IssueResponse>(
-          `/issue/${args.issue_key}?fields=summary,description,status,assignee,comment,attachment&expand=renderedFields`,
+          `/issue/${args.issue_key}?fields=summary,description,status,assignee,comment,attachment,issuelinks&expand=renderedFields`,
         );
 
         const attachments = data.fields.attachment ?? [];
@@ -99,6 +112,20 @@ export function register(server: McpServer, client: JiraClient): void {
             author: a.author.displayName,
             content: a.content,
           })),
+          issueLinks: (data.fields.issuelinks ?? []).map((link) => {
+            const other = link.outwardIssue ?? link.inwardIssue;
+            const direction = link.outwardIssue ? "outward" : "inward";
+            const relation = link.outwardIssue ? link.type.outward : link.type.inward;
+            return {
+              id: link.id,
+              linkType: link.type.name,
+              direction,
+              relation,
+              issue: other
+                ? { key: other.key, summary: other.fields.summary, status: other.fields.status.name }
+                : null,
+            };
+          }),
         };
 
         return successResponse(result);

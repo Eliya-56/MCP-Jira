@@ -67,6 +67,19 @@ export class JiraClient {
     return this.handleResponse<T>(response, "PUT", path);
   }
 
+  async delete<T = unknown>(path: string): Promise<T> {
+    const url = `${this.apiBase}${path}`;
+    const response = await fetch(url, {
+      method: "DELETE",
+      headers: {
+        Authorization: this.authHeader,
+        Accept: "application/json",
+      },
+    });
+
+    return this.handleResponse<T>(response, "DELETE", path);
+  }
+
   async postFormData<T = unknown>(path: string, formData: FormData): Promise<T> {
     const url = `${this.apiBase}${path}`;
     const response = await fetch(url, {
