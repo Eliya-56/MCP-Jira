@@ -1,6 +1,6 @@
 # Markdown Formatting for Jira
 
-The Jira MCP server converts Markdown to Atlassian Document Format (ADF) when creating issues (`create_task`) and adding comments (`add_comment`, `attach_file` with comment).
+The Jira MCP server converts Markdown to Atlassian Document Format (ADF) when creating issues (`create_task`), updating issues (`update_task`), and adding comments (`add_comment`, `attach_file` with comment).
 
 ## Supported Syntax
 

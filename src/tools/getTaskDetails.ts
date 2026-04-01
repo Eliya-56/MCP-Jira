@@ -44,14 +44,16 @@ interface IssueResponse {
 }
 
 export function register(server: McpServer, client: JiraClient): void {
-  server.tool(
+  server.registerTool(
     "get_task_details",
-    "Get full context for a Jira issue including description, status, assignee, and comments.",
     {
-      issue_key: z
-        .string()
-        .regex(/^[A-Z][A-Z0-9_]+-\d+$/, "Must be a valid issue key like PROJ-123")
-        .describe("Jira issue key (e.g. PROJ-123)"),
+      description: "Get full context for a Jira issue including description, status, assignee, and comments.",
+      inputSchema: {
+        issue_key: z
+          .string()
+          .regex(/^[A-Z][A-Z0-9_]+-\d+$/, "Must be a valid issue key like PROJ-123")
+          .describe("Jira issue key (e.g. PROJ-123)"),
+      },
     },
     async (args) => {
       try {

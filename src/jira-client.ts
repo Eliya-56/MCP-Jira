@@ -50,6 +50,21 @@ export class JiraClient {
     return this.handleResponse<T>(response, "POST", path);
   }
 
+  async put<T = unknown>(path: string, body: unknown): Promise<T> {
+    const url = `${this.apiBase}${path}`;
+    const response = await fetch(url, {
+      method: "PUT",
+      headers: {
+        Authorization: this.authHeader,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    return this.handleResponse<T>(response, "PUT", path);
+  }
+
   async postFormData<T = unknown>(path: string, formData: FormData): Promise<T> {
     const url = `${this.apiBase}${path}`;
     const response = await fetch(url, {

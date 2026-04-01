@@ -1,7 +1,7 @@
 # Jira MCP Server
 
 MCP (Model Context Protocol) server for Jira Cloud.
-Provides AI assistants with tools to read, search, create, transition, comment, and attach files to Jira issues via the REST API v3. Text fields (descriptions, comments) support Markdown formatting.
+Provides AI assistants with tools to read, search, create, update, transition, comment, and attach files to Jira issues via the REST API v3. Text fields (descriptions, comments) support Markdown formatting.
 
 ## Prerequisites
 
@@ -94,6 +94,19 @@ Creates a new Jira issue. Description supports [Markdown formatting](docs/markdo
 | `summary`     | string |          | Issue title                             |
 | `issue_type`  | string | `Task`   | Issue type (Task, Bug, Story, Epic ...) |
 | `description` | string |          | Description (supports Markdown)         |
+| `parent`      | string |          | Parent issue key (e.g. epic key)        |
+
+### update_task
+
+Updates fields on an existing Jira issue. Only provided fields are changed. Description supports [Markdown formatting](docs/markdown-formatting.md).
+
+| Parameter     | Type   | Description                             |
+|---------------|--------|-----------------------------------------|
+| `issue_key`   | string | Issue key, e.g. `PROJ-123`              |
+| `summary`     | string | New issue title                         |
+| `description` | string | New description (supports Markdown)     |
+| `issue_type`  | string | New issue type (Story, Bug, Task ...)   |
+| `parent`      | string | New parent issue key (e.g. epic key)    |
 
 ### add_comment
 
@@ -133,7 +146,8 @@ npm run cli -- get_my_tasks max_results=5
 npm run cli -- get_task_details issue_key=PROJ-123
 npm run cli -- search_tasks query="oauth bug" max_results=5
 npm run cli -- search_tasks jql="project = PROJ AND status = Open"
-npm run cli -- create_task project=PROJ summary="Fix login bug" issue_type=Bug description="**Steps:** ..."
+npm run cli -- create_task project=PROJ summary="Fix login bug" issue_type=Bug description="**Steps:** ..." parent=PROJ-100
+npm run cli -- update_task issue_key=PROJ-123 summary="Updated title" description="New **description**"
 npm run cli -- update_task_status issue_key=PROJ-123 transition_name="In Progress"
 npm run cli -- add_comment issue_key=PROJ-123 comment="Fixed in PR #42"
 npm run cli -- attach_file issue_key=PROJ-123 file_path=C:\path\to\report.pdf
@@ -171,6 +185,7 @@ src/
     addComment.ts
     attachFile.ts
     createTask.ts
+    updateTask.ts
 docs/
   markdown-formatting.md  — Supported Markdown syntax reference
 ```

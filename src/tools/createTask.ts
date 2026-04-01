@@ -12,30 +12,32 @@ interface CreateIssueResponse {
 }
 
 export function register(server: McpServer, client: JiraClient): void {
-  server.tool(
+  server.registerTool(
     "create_task",
-    "Create a new Jira issue. Description supports Markdown formatting (headings, bold, italic, code, lists, links, blockquotes).",
     {
-      project: z
-        .string()
-        .min(1)
-        .describe("Project key (e.g. PROJ)"),
-      summary: z
-        .string()
-        .min(1)
-        .describe("Issue title / summary"),
-      issue_type: z
-        .string()
-        .default("Task")
-        .describe("Issue type name (default: Task). Common values: Task, Bug, Story, Epic"),
-      description: z
-        .string()
-        .optional()
-        .describe("Issue description (supports Markdown)"),
-      parent: z
-        .string()
-        .optional()
-        .describe("Parent issue key (e.g. epic key PROJ-100) to link this issue under"),
+      description: "Create a new Jira issue. Description supports Markdown formatting (headings, bold, italic, code, lists, links, blockquotes).",
+      inputSchema: {
+        project: z
+          .string()
+          .min(1)
+          .describe("Project key (e.g. PROJ)"),
+        summary: z
+          .string()
+          .min(1)
+          .describe("Issue title / summary"),
+        issue_type: z
+          .string()
+          .default("Task")
+          .describe("Issue type name (default: Task). Common values: Task, Bug, Story, Epic"),
+        description: z
+          .string()
+          .optional()
+          .describe("Issue description (supports Markdown)"),
+        parent: z
+          .string()
+          .optional()
+          .describe("Parent issue key (e.g. epic key PROJ-100) to link this issue under"),
+      },
     },
     async (args) => {
       try {

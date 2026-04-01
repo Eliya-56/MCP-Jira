@@ -16,27 +16,29 @@ interface SearchResponse {
 }
 
 export function register(server: McpServer, client: JiraClient): void {
-  server.tool(
+  server.registerTool(
     "search_tasks",
-    "Search Jira issues by text query or raw JQL. Provide either 'query' (text search) or 'jql' (raw JQL), not both.",
     {
-      query: z
-        .string()
-        .min(1)
-        .optional()
-        .describe("Text to search for in issues (uses text ~ \"...\")"),
-      jql: z
-        .string()
-        .min(1)
-        .optional()
-        .describe("Raw JQL query (e.g. 'project = PROJ AND status = \"In Progress\"')"),
-      max_results: z
-        .number()
-        .int()
-        .min(1)
-        .max(50)
-        .default(5)
-        .describe("Maximum number of results (1-50, default 5)"),
+      description: "Search Jira issues by text query or raw JQL. Provide either 'query' (text search) or 'jql' (raw JQL), not both.",
+      inputSchema: {
+        query: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Text to search for in issues (uses text ~ \"...\")"),
+        jql: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Raw JQL query (e.g. 'project = PROJ AND status = \"In Progress\"')"),
+        max_results: z
+          .number()
+          .int()
+          .min(1)
+          .max(50)
+          .default(5)
+          .describe("Maximum number of results (1-50, default 5)"),
+      },
     },
     async (args) => {
       try {

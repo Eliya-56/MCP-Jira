@@ -238,6 +238,24 @@ async function createTask(client: JiraClient, args: Record<string, unknown>): Pr
   };
 }
 
+async function updateTask(client: JiraClient, args: Record<string, unknown>): Promise<unknown> {
+  const key = String(args.issue_key ?? "");
+  if (!key) throw new Error("issue_key is required");
+
+  const fields: Record<string, unknown> = {};
+  if (args.summary) fields.summary = String(args.summary);
+  if (args.description) fields.description = markdownToAdf(String(args.description));
+  if (args.issue_type) fields.issuetype = { name: String(args.issue_type) };
+  if (args.parent) fields.parent = { key: String(args.parent) };
+
+  if (Object.keys(fields).length === 0) {
+    throw new Error("At least one field to update must be provided (summary, description, issue_type, parent)");
+  }
+
+  await client.put(`/issue/${key}`, { fields });
+  return { success: true, key };
+}
+
 async function rawIssue(client: JiraClient, args: Record<string, unknown>): Promise<unknown> {
   const key = String(args.issue_key ?? "");
   if (!key) throw new Error("issue_key is required");
@@ -255,6 +273,7 @@ const TOOLS: Record<string, (client: JiraClient, args: Record<string, unknown>) 
   add_comment: addComment,
   attach_file: attachFile,
   create_task: createTask,
+  update_task: updateTask,
 };
 
 function printUsage(): void {
@@ -274,6 +293,7 @@ Tools:
   add_comment         issue_key=PROJ-123 comment="Fixed in PR #42"
   attach_file         issue_key=PROJ-123 file_path=C:\path\to\file.txt [comment="See attached"]
   create_task         project=PROJ summary="Bug title" [issue_type=Bug] [description="..."] [parent=EPIC-1]
+  update_task         issue_key=PROJ-123 [summary="New title"] [description="..."] [issue_type=Bug] [parent=EPIC-1]
   raw_issue           issue_key=PROJ-123  (dump raw API response for debugging)
 `.trim());
 }

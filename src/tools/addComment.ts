@@ -6,15 +6,17 @@ import { JiraClientError } from "../jira-client.js";
 import { errorResponse, successResponse } from "../response.js";
 
 export function register(server: McpServer, client: JiraClient): void {
-  server.tool(
+  server.registerTool(
     "add_comment",
-    "Add a comment to a Jira issue. Supports Markdown formatting.",
     {
-      issue_key: z
-        .string()
-        .regex(/^[A-Z][A-Z0-9_]+-\d+$/, "Must be a valid issue key like PROJ-123")
-        .describe("Jira issue key (e.g. PROJ-123)"),
-      comment: z.string().min(1).describe("Comment text (supports Markdown)"),
+      description: "Add a comment to a Jira issue. Supports Markdown formatting.",
+      inputSchema: {
+        issue_key: z
+          .string()
+          .regex(/^[A-Z][A-Z0-9_]+-\d+$/, "Must be a valid issue key like PROJ-123")
+          .describe("Jira issue key (e.g. PROJ-123)"),
+        comment: z.string().min(1).describe("Comment text (supports Markdown)"),
+      },
     },
     async (args) => {
       try {

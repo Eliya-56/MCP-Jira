@@ -16,17 +16,19 @@ interface SearchResponse {
 }
 
 export function register(server: McpServer, client: JiraClient): void {
-  server.tool(
+  server.registerTool(
     "get_my_tasks",
-    "Get active tasks assigned to the current user, ordered by priority descending.",
     {
-      max_results: z
-        .number()
-        .int()
-        .min(1)
-        .max(50)
-        .default(10)
-        .describe("Maximum number of tasks to return (1-50, default 10)"),
+      description: "Get active tasks assigned to the current user, ordered by priority descending.",
+      inputSchema: {
+        max_results: z
+          .number()
+          .int()
+          .min(1)
+          .max(50)
+          .default(10)
+          .describe("Maximum number of tasks to return (1-50, default 10)"),
+      },
     },
     async (args) => {
       try {

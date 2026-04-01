@@ -15,22 +15,24 @@ interface AttachmentResponse {
 }
 
 export function register(server: McpServer, client: JiraClient): void {
-  server.tool(
+  server.registerTool(
     "attach_file",
-    "Upload a file from disk and attach it to a Jira issue.",
     {
-      issue_key: z
-        .string()
-        .regex(/^[A-Z][A-Z0-9_]+-\d+$/, "Must be a valid issue key like PROJ-123")
-        .describe("Jira issue key (e.g. PROJ-123)"),
-      file_path: z
-        .string()
-        .min(1)
-        .describe("Absolute path to the file on disk"),
-      comment: z
-        .string()
-        .optional()
-        .describe("Optional comment to add after attaching"),
+      description: "Upload a file from disk and attach it to a Jira issue.",
+      inputSchema: {
+        issue_key: z
+          .string()
+          .regex(/^[A-Z][A-Z0-9_]+-\d+$/, "Must be a valid issue key like PROJ-123")
+          .describe("Jira issue key (e.g. PROJ-123)"),
+        file_path: z
+          .string()
+          .min(1)
+          .describe("Absolute path to the file on disk"),
+        comment: z
+          .string()
+          .optional()
+          .describe("Optional comment to add after attaching"),
+      },
     },
     async (args) => {
       try {

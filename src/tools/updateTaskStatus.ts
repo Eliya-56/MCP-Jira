@@ -12,18 +12,20 @@ interface TransitionsResponse {
 }
 
 export function register(server: McpServer, client: JiraClient): void {
-  server.tool(
+  server.registerTool(
     "update_task_status",
-    "Transition a Jira issue to a new status using the Jira transitions API.",
     {
-      issue_key: z
-        .string()
-        .regex(/^[A-Z][A-Z0-9_]+-\d+$/, "Must be a valid issue key like PROJ-123")
-        .describe("Jira issue key (e.g. PROJ-123)"),
-      transition_name: z
-        .string()
-        .min(1)
-        .describe("Target transition name (e.g. 'In Progress', 'Done')"),
+      description: "Transition a Jira issue to a new status using the Jira transitions API.",
+      inputSchema: {
+        issue_key: z
+          .string()
+          .regex(/^[A-Z][A-Z0-9_]+-\d+$/, "Must be a valid issue key like PROJ-123")
+          .describe("Jira issue key (e.g. PROJ-123)"),
+        transition_name: z
+          .string()
+          .min(1)
+          .describe("Target transition name (e.g. 'In Progress', 'Done')"),
+      },
     },
     async (args) => {
       try {
